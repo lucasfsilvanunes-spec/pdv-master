@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { return isSignedIn() && request.auth.token.email == 'lucasfsilvanunes@gmail.com'; }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+    
+    match /products/{productId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /sales/{saleId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /transactions/{transactionId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /customers/{customerId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /cashier_sessions/{sessionId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /feedbacks/{feedbackId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    // Fallback para outras coleções
+    match /{document=**} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}
