@@ -1,0 +1,175 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: products
+    // Fields: name (string), price (number), costPrice (number), stock (number), category (string), sku (string), createdAt (string)
+    //
+    // Collection: sales
+    // Fields: items (array), total (number), payments (array), createdAt (string), userId (string)
+    //
+    // Collection: transactions
+    // Fields: type (string), amount (number), description (string), category (string), date (string), userId (string)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "lucasfsilvanunes@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidProduct(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.price is number && data.price >= 0 &&
+             data.stock is number &&
+             data.sku is string && data.sku.size() > 0;
+    }
+
+    function isValidSale(data) {
+      return data.items is list && data.items.size() > 0 &&
+             data.total is number && data.total >= 0 &&
+             data.payments is list && data.payments.size() > 0 &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidTransaction(data) {
+      return data.type in ['in', 'out'] &&
+             data.amount is number && data.amount >= 0 &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidCustomer(data) {
+      return data.name is string && data.name.size() > 0 &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidCashierSession(data) {
+      return data.status in ['open', 'closed'] &&
+             data.openingBalance is number &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidFeedback(data) {
+      return data.userId == request.auth.uid &&
+             data.userEmail is string &&
+             data.message is string && data.message.size() > 0 &&
+             data.type in ['bug', 'suggestion', 'support'] &&
+             data.status in ['new', 'read', 'resolved'];
+    }
+
+    function isValidUserProfile(data) {
+      return data.email is string &&
+             data.isActive is bool &&
+             data.validityDate is string &&
+             data.role in ['admin', 'user'] &&
+             (!('full_name' in data) || data.full_name is string) &&
+             (!('whatsapp' in data) || data.whatsapp is string) &&
+             (!('cpf' in data) || data.cpf is string) &&
+             (!('company_name' in data) || data.company_name is string) &&
+             (!('business_industry' in data) || data.business_industry is string) &&
+             (!('trialUsed' in data) || data.trialUsed is bool) &&
+             (!('supportNotes' in data) || data.supportNotes is string) &&
+             (!('planoEscolhido' in data) || data.planoEscolhido is string) &&
+             (!('statusPagamento' in data) || data.statusPagamento in ['aguardando', 'pago', 'cancelado']) &&
+             (!('dataSolicitacao' in data) || data.dataSolicitacao is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      // Allow creation of a default inactive profile
+      allow create: if isAdmin() || (isOwner(userId) && request.resource.data.isActive == false && request.resource.data.role == 'user');
+      
+      // Allow updates:
+      // 1. Admins can update anything
+      // 2. Users can update their own profile fields, but NOT isActive, validityDate, or role
+      // 3. SPECIAL CASE: User can set trialUsed: true AND validityDate (up to 31 days) IF trialUsed was previously false/null
+      allow update: if isAdmin() || (isOwner(userId) && (
+        (
+          // Standard Update: Protect core fields
+          request.resource.data.isActive == resource.data.isActive && 
+          request.resource.data.validityDate == resource.data.validityDate &&
+          request.resource.data.role == resource.data.role &&
+          (
+            ('trialUsed' in request.resource.data && 'trialUsed' in resource.data && request.resource.data.trialUsed == resource.data.trialUsed) ||
+            (!('trialUsed' in request.resource.data) && !('trialUsed' in resource.data))
+          )
+        ) || (
+          // Onboarding/Trial activation case
+          (!('trialUsed' in resource.data) || resource.data.trialUsed == false) &&
+          request.resource.data.trialUsed == true &&
+          request.resource.data.isActive == true &&
+          request.resource.data.role == 'user'
+        ) || (
+          // Paywall/Payment request case
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['planoEscolhido', 'statusPagamento', 'dataSolicitacao']) &&
+          request.resource.data.statusPagamento == 'aguardando'
+        )
+      ));
+    }
+
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidProduct(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /sales/{saleId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidSale(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidTransaction(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /customers/{customerId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update: if isAuthenticated() && isValidCustomer(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /cashier_sessions/{sessionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update: if isAuthenticated() && isValidCashierSession(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    match /feedbacks/{feedbackId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && isValidFeedback(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+    
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

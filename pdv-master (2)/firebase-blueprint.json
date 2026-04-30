@@ -1,0 +1,185 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account registration and subscription status",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "validityDate": { "type": "string", "format": "date-time" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "full_name": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "cpf": { "type": "string" },
+        "company_name": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "business_industry": { "type": "string" },
+        "trialUsed": { "type": "boolean" },
+        "supportNotes": { "type": "string" },
+        "planoEscolhido": { "type": "string" },
+        "statusPagamento": { "type": "string", "enum": ["aguardando", "pago", "cancelado"] },
+        "dataSolicitacao": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "isActive", "validityDate", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "A product in the inventory",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Product name" },
+        "price": { "type": "number", "description": "Selling price" },
+        "costPrice": { "type": "number", "description": "Cost price" },
+        "stock": { "type": "number", "description": "Current stock quantity" },
+        "category": { "type": "string", "description": "Product category" },
+        "sku": { "type": "string", "description": "Stock Keeping Unit" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "stock", "sku"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "A completed sale transaction",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "name": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" },
+              "total": { "type": "number" }
+            }
+          }
+        },
+        "total": { "type": "number" },
+        "payments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "method": { "type": "string", "enum": ["cash", "credit_card", "debit_card", "pix"] },
+              "amount": { "type": "number" },
+              "received": { "type": "number" },
+              "change": { "type": "number" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["items", "total", "payments", "createdAt", "userId"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "cpf": { "type": "string" },
+        "address": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["name", "userId"]
+    },
+    "CashierSession": {
+      "title": "CashierSession",
+      "type": "object",
+      "properties": {
+        "openedAt": { "type": "string" },
+        "closedAt": { "type": "string" },
+        "openingBalance": { "type": "number" },
+        "expectedClosingBalance": { "type": "number" },
+        "reportedClosingBalance": { "type": "number" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "userId": { "type": "string" }
+      },
+      "required": ["openedAt", "openingBalance", "status", "userId"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "type": "object",
+      "properties": {
+        "saleId": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "accessKey": { "type": "string" },
+        "status": { "type": "string", "enum": ["issued", "cancelled"] },
+        "createdAt": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["saleId", "invoiceNumber", "accessKey", "status", "userId"]
+    },
+    "CashTransaction": {
+      "title": "CashTransaction",
+      "description": "A cash flow transaction (inflow or outflow)",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["in", "out"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["type", "amount", "description", "category", "date", "userId"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "User reported problems or suggestions",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "companyName": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["bug", "suggestion", "support"] },
+        "status": { "type": "string", "enum": ["new", "read", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userEmail", "message", "type", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Collection of products"
+    },
+    "/sales/{saleId}": {
+      "schema": "Sale",
+      "description": "Collection of sales"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "CashTransaction",
+      "description": "Collection of cash flow transactions"
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Collection of customers"
+    },
+    "/cashier_sessions/{sessionId}": {
+      "schema": "CashierSession",
+      "description": "Collection of cashier sessions"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Collection of issued invoices"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "System user profiles"
+    },
+    "/feedbacks/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "Collection of user feedbacks"
+    }
+  }
+}
