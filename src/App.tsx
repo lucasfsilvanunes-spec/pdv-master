@@ -114,6 +114,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [networkTime, setNetworkTime] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
